@@ -281,3 +281,40 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .map-instruction { max-width:215px;text-align:right;line-height:1.4; }
 }
 @media(max-width:400px) { .map-click-card { top:126px; width:min(220px,calc(100% - 28px)); } }
+
+/* Itinerary sorting — drag handle, insertion cue and animated arrow moves. */
+.itinerary-list { position:relative; }
+.tour-item { position:relative; z-index:0; will-change:transform; }
+.tour-item.is-dragging { z-index:20; cursor:grabbing; filter:drop-shadow(0 8px 12px rgba(27,67,44,.17)); }
+.tour-item.is-dragging .tour-content { background:#fcfdf9; box-shadow:0 0 0 1px #b9d5c3; border-radius:8px; }
+.tour-item.drop-before::before, .tour-item.drop-after::after { content:''; position:absolute; left:40px; right:5px; height:3px; background:#2b7657; border-radius:6px; z-index:25; pointer-events:none; }
+.tour-item.drop-before::before { top:-7px; }
+.tour-item.drop-after::after { bottom:5px; }
+.tour-actions .tour-drag-handle { color:#688d78; cursor:grab; touch-action:none; }
+.tour-actions .tour-drag-handle:active { cursor:grabbing; background:#e9f1e9; }
+.tour-actions .tour-drag-handle:hover { background:#e9f1e9; }
+
+/* A minimal place finder that respects the original editorial design. */
+.any-place-card { margin:14px 0 20px; padding:15px; border:1px solid #dee8dd; background:#f5f8f3; border-radius:10px; }
+.any-place-head { display:flex; align-items:flex-start; gap:10px; color:#3d7858; }
+.any-place-head>svg { flex:none; margin-top:2px; }
+.any-place-head strong { font-size:12px; display:block; color:#345b44; }
+.any-place-head span { font-size:10px; line-height:1.55; display:block; color:#788c7e; margin-top:3px; }
+.any-place-form { display:flex; gap:7px; margin-top:12px; }
+.any-place-form input { min-width:0; flex:1; width:100%; padding:10px; border:1px solid #d5e3d4; background:#fff; border-radius:6px; font-size:11px; color:#34493b; }
+.any-place-form input::placeholder { color:#9aa79d; }
+.any-place-form button { flex:none; border:0; border-radius:6px; background:#276449; color:#fff; padding:0 14px; font-size:11px; font-weight:700; }
+.any-place-form button:disabled { opacity:.45; }
+.any-place-feedback { color:#597f65; margin:10px 0 0; font-size:10px; line-height:1.5; }
+.any-place-results { display:flex; flex-direction:column; gap:7px; margin-top:12px; }
+.any-place-result { display:flex; gap:9px; justify-content:space-between; align-items:center; padding:10px; background:#fff; border:1px solid #e2eae0; border-radius:7px; }
+.any-place-result-text { flex:1; min-width:0; }
+.any-place-result-text strong { font-size:11px; color:#344b3c; display:block; }
+.any-place-result-text span { font-size:9px; color:#829285; line-height:1.45; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin-top:3px; }
+.any-place-result-actions { display:flex; flex:none; flex-direction:column; gap:5px; }
+.any-place-result-actions button { border:1px solid #dce8dc; background:#f7faf6; color:#356749; border-radius:5px; display:flex; gap:3px; align-items:center; justify-content:center; padding:5px 7px; font-size:10px; font-weight:700; }
+.any-place-result-actions button:disabled { opacity:.4; }
+.any-place-attribution { display:block; color:#87968a; font-size:9px; margin-top:10px; }
+.empty-search button { display:block; border:0; background:transparent; color:#286748; margin:9px auto 0; font-size:11px; text-decoration:underline; font-weight:700; }
+@media (max-width:400px) { .any-place-card{padding:11px}.tour-actions button{width:25px;height:27px} }
+@media (prefers-reduced-motion: reduce) { .tour-item, .tour-drag-handle { transition:none !important; } }
