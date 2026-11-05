@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvents } from 'react-leaflet';
 import {
   ArrowDown, ArrowRight, ArrowUp, Check, ChevronDown, Clock3, Compass,
-  Download, ExternalLink, Footprints, Heart, Info, MapPin, Plus, RotateCcw,
+  Download, ExternalLink, Footprints, GripVertical, Heart, Info, MapPin, Plus, RotateCcw,
   Route, Search, Share2, Trash2, X
 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
@@ -14,6 +14,7 @@ import { PHOTOS, photoUrl, photoSourceUrl, placePhotoKey } from './photos.js';
 import { estimateMatrix, formatMinutes, makeLegs, optimiseOrder } from './lib/optimizer.js';
 import { fetchWalkingLegs, fetchWalkingMatrix } from './lib/routing.js';
 import { cleanTrip, downloadJson, googleMapsUrl, loadTrip, persistTrip, shareUrl, getPlace, tripPlaces, inLondon } from './lib/trip.js';
+import { moveStop, parsePlaceInput, safePlaceResults } from './lib/place-search.js';
 
 const SOURCE_LABELS = {
   'walking-path': 'Mapped walking paths',
@@ -172,11 +173,12 @@ function PlaceCard({ place, selected, onToggle, disableAdd }) {
   );
 }
 
-function TourStop({ place, index, leg, first, onRemove, onMove, visit, onVisit, onRename, total }) {
+function TourStop({ place, index, leg, first, onRemove, onMove, visit, onVisit, onRename, total, drag, onGrab, onDrag, onDrop, onCancelDrag }) {
   const custom = place.category === 'Custom stop';
   const minutes = visit ?? place.visit;
   return (
-    <div className="tour-item">
+    <div data-stop-id={place.id} className={`tour-item ${drag?.id === place.id ? 'is-dragging' : ''} ${drag?.before === place.id ? 'drop-before' : ''} ${drag?.after === place.id ? 'drop-after' : ''}`}
+      style={drag?.id === place.id ? { transform: `translate3d(0, ${drag.offset}px, 0)` } : undefined}>
       <div className="tour-rail"><span className="tour-number">{index + 1}</span><span className="tour-connector"></span></div>
       <div className="tour-content">
         {first && <div className="stop-overline">YOUR STARTING POINT</div>}
@@ -193,6 +195,10 @@ function TourStop({ place, index, leg, first, onRemove, onMove, visit, onVisit, 
             {[0,10,15,20,25,30,40,45,60,75,90,120,150,180].concat([minutes]).filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b).map(min => <option key={min} value={min}>{min} min</option>)}
           </select></label>
           <div className="tour-actions">
+            <button className="tour-drag-handle" title="Drag to reorder stops" aria-label={`Drag ${place.name} to reorder, or use arrow keys`} type="button"
+              onPointerDown={event => onGrab(event, place.id)}
+              onPointerMove={onDrag} onPointerUp={onDrop} onPointerCancel={onCancelDrag}
+              onKeyDown={event => { if (event.key === 'ArrowUp' && index > 0) { event.preventDefault(); onMove(index, -1); } else if (event.key === 'ArrowDown' && index < total - 1) { event.preventDefault(); onMove(index, 1); } }}><GripVertical size={17}/></button>
             <button title="Move up" aria-label={`Move ${place.name} up`} disabled={index === 0} onClick={() => onMove(index, -1)}><ArrowUp size={15}/></button>
             <button title="Move down" aria-label={`Move ${place.name} down`} disabled={index === total - 1} onClick={() => onMove(index, 1)}><ArrowDown size={15}/></button>
             <button title="Remove stop" aria-label={`Remove ${place.name}`} onClick={() => onRemove(place.id)}><X size={16}/></button>
@@ -218,6 +224,17 @@ function App() {
   const [highlightedId, setHighlightedId] = useState('');
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [pending, setPending] = useState(null);
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [placeResults, setPlaceResults] = useState([]);
+  const [placeMessage, setPlaceMessage] = useState('');
+  const [findingPlaces, setFindingPlaces] = useState(false);
+  const [drag, setDrag] = useState(null);
+  const dragRef = useRef(null);
+  const listRef = useRef(null);
+  const previousPositions = useRef(null);
+  const plannerScrollRef = useRef(null);
+  const finderRef = useRef(null);
+  const placeController = useRef(null);
   const controller = useRef(null);
 
   const selected = useMemo(() => tripPlaces(trip), [trip.ids, trip.custom]);
@@ -239,7 +256,32 @@ function App() {
   const totalMin = walkMin + visitMin;
 
   useEffect(() => { persistTrip(trip); }, [trip]);
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => () => { controller.current?.abort(); placeController.current?.abort(); }, []);
+
+  const captureStopPositions = () => {
+    if (!listRef.current) return;
+    previousPositions.current = new Map(Array.from(listRef.current.querySelectorAll('[data-stop-id]'), node => {
+      const top = node.getBoundingClientRect().top;
+      return [node.dataset.stopId, top - (dragRef.current?.id === node.dataset.stopId ? dragRef.current.offset : 0)];
+    }));
+  };
+
+  // FLIP transitions: the stop is animated from its previous position to its new one.
+  // This makes arrow-button moves easy to follow as well as drag/drop reorders.
+  useLayoutEffect(() => {
+    const old = previousPositions.current;
+    previousPositions.current = null;
+    if (!old || !listRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for (const node of listRef.current.querySelectorAll('[data-stop-id]')) {
+      const oldTop = old.get(node.dataset.stopId);
+      if (oldTop === undefined) continue;
+      const distance = oldTop - node.getBoundingClientRect().top;
+      if (Math.abs(distance) > 2) node.animate(
+        [{ transform: `translateY(${distance}px)` }, { transform: 'translateY(0px)' }],
+        { duration: 300, easing: 'cubic-bezier(.2,.7,.15,1)' }
+      );
+    }
+  }, [orderedIds.join('|')]);
 
   const changeTrip = (modify) => {
     controller.current?.abort();
@@ -298,14 +340,104 @@ function App() {
     changeTrip(previous => ({ ...previous, ids: preset.ids, custom: [], visits:{}, start: '', mode:'optimise' }));
     setTab('itinerary');
   };
-  const reorder = (index, amount) => {
-    changeTrip(previous => {
-      const current = [...orderedIds];
-      const to = index + amount;
-      if (to < 0 || to >= current.length) return previous;
-      [current[index],current[to]]=[current[to],current[index]];
-      return {...previous, ids:current, start:current[0], mode:'manual'};
-    });
+  const reorderTo = (from, to) => {
+    if (from === to || from < 0 || to < 0 || from >= orderedIds.length || to >= orderedIds.length) return;
+    captureStopPositions();
+    const next = moveStop(orderedIds, from, to);
+    changeTrip(previous => ({ ...previous, ids: next, start: next[0], mode: 'manual' }));
+  };
+  const reorder = (index, amount) => reorderTo(index, index + amount);
+
+  const beginDrag = (event, id) => {
+    if ((event.pointerType === 'mouse' && event.button !== 0) || !listRef.current) return;
+    const from = orderedIds.indexOf(id);
+    if (from < 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { id, from, to: from, originY: event.clientY, pointerId: event.pointerId, offset: 0, initialScroll: plannerScrollRef.current?.scrollTop || 0 };
+    setDrag({ id, offset: 0, before: '', after: '' });
+  };
+  const moveDrag = event => {
+    const active = dragRef.current;
+    if (!active || active.pointerId !== event.pointerId || !listRef.current) return;
+    event.preventDefault();
+    const scroll = plannerScrollRef.current;
+    if (scroll) {
+      const box = scroll.getBoundingClientRect();
+      if (event.clientY > box.bottom - 58) scroll.scrollTop += 13;
+      else if (event.clientY < box.top + 58) scroll.scrollTop -= 13;
+    }
+    const otherNodes = Array.from(listRef.current.querySelectorAll('[data-stop-id]')).filter(node => node.dataset.stopId !== active.id);
+    const target = otherNodes.filter(node => event.clientY > node.getBoundingClientRect().top + node.getBoundingClientRect().height / 2).length;
+    const nextNode = otherNodes[target];
+    const lastNode = otherNodes[otherNodes.length - 1];
+    const offset = event.clientY - active.originY + (scroll?.scrollTop || 0) - active.initialScroll;
+    dragRef.current = { ...active, to: target, offset };
+    setDrag({ id: active.id, offset, before: nextNode?.dataset.stopId || '', after: !nextNode ? lastNode?.dataset.stopId || '' : '' });
+  };
+  const finishDrag = event => {
+    const active = dragRef.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    // Restore the visual position before FLIP measures the new layout.
+    dragRef.current = { ...active };
+    setDrag(null);
+    if (active.from !== active.to) reorderTo(active.from, active.to);
+    dragRef.current = null;
+  };
+  const cancelDrag = () => { dragRef.current = null; setDrag(null); };
+
+  const addFoundLocation = (location, asStart = false) => {
+    if (trip.ids.length >= MAX_STOPS) { setPlaceMessage(`This walk has the maximum of ${MAX_STOPS} stops.`); return; }
+    if (!inLondon(location.lat, location.lon)) { setPlaceMessage('This location is outside the supported London area.'); return; }
+    const id = `pin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+    const place = { id, lat: Number(location.lat.toFixed(6)), lon: Number(location.lon.toFixed(6)), name: location.name.slice(0, 65) };
+    changeTrip(previous => ({ ...previous, custom: [...previous.custom, place],
+      ids: asStart ? [id, ...orderedIds] : [...orderedIds, id],
+      start: asStart ? id : previous.start, mode: 'manual' }));
+    setPlaceMessage(`${place.name} added to your walk.`);
+    setTab('itinerary');
+  };
+
+  const findAnyPlace = async (input = placeQuery) => {
+    placeController.current?.abort();
+    const controllerForSearch = new AbortController();
+    placeController.current = controllerForSearch;
+    setPlaceResults([]);
+    setPlaceMessage('');
+    setFindingPlaces(true);
+    try {
+      let parsed = parsePlaceInput(input);
+      if (parsed.kind === 'shortlink') {
+        const response = await fetch(`/api/places?url=${encodeURIComponent(parsed.url)}`, { signal: controllerForSearch.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not read the shared Google Maps link.');
+        parsed = parsePlaceInput(data.url);
+      }
+      if (parsed.kind === 'invalid') throw new Error(parsed.message);
+      if (parsed.kind === 'coordinate') {
+        setPlaceResults([parsed]);
+        setPlaceMessage('Shared map location found. Add it to your walk below.');
+        return;
+      }
+      const query = parsed.query;
+      const url = import.meta.env.DEV
+        ? `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=7&bounded=1&viewbox=-0.65%2C51.8%2C0.35%2C51.2&q=${encodeURIComponent(query)}`
+        : `/api/places?q=${encodeURIComponent(query)}`;
+      const response = await fetch(url, { signal: controllerForSearch.signal });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Place search is temporarily unavailable.');
+      }
+      const json = await response.json();
+      const records = Array.isArray(json) ? json.map(p => ({ name: p.name || p.display_name?.split(',')[0], detail: p.display_name, lat: p.lat, lon: p.lon })) : json.results;
+      const places = safePlaceResults(records);
+      setPlaceResults(places);
+      setPlaceMessage(places.length ? `${places.length} matching London ${places.length === 1 ? 'place' : 'places'} found.` : 'No matching place found. Try a nearby street or click directly on the map.');
+    } catch (error) {
+      if (!controllerForSearch.signal.aborted) setPlaceMessage(error.message || 'Search unavailable.');
+    } finally {
+      if (placeController.current === controllerForSearch) setFindingPlaces(false);
+    }
   };
   const changeStart = (id) => {
     changeTrip(previous => ({...previous, start:id,
@@ -359,7 +491,7 @@ function App() {
 
       <main className="app-body">
         <section className="planner-panel" aria-label="Walking tour planner">
-          <div className="planner-scroll">
+          <div className="planner-scroll" ref={plannerScrollRef}>
             <Intro count={trip.ids.length}/>
             <div className="panel-tabs" role="tablist" aria-label="Planner view">
               <button className={tab === 'explore' ? 'active' : ''} role="tab" aria-selected={tab === 'explore'} onClick={() => setTab('explore')}><Compass size={16}/> Explore places</button>
@@ -380,12 +512,30 @@ function App() {
                 </div>
                 <SectionTitle index="02" hint={`${visiblePlaces.length} PLACES`}>Make it your own</SectionTitle>
                 <label className="search-box"><Search size={18}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search London’s best bits…" aria-label="Search places"/>{search && <button onClick={() => setSearch('')} aria-label="Clear search"><X size={16}/></button>}</label>
+                <div className="any-place-card" ref={finderRef}>
+                  <div className="any-place-head"><MapPin size={17}/><div><strong>Find anywhere in London</strong><span>Not in the collection? Search by name, address or paste a Google Maps link.</span></div></div>
+                  <form className="any-place-form" onSubmit={event => { event.preventDefault(); findAnyPlace(); }}>
+                    <input aria-label="Search any London place" placeholder="Try Hampstead Heath, a café or a Maps link" value={placeQuery} onChange={event => setPlaceQuery(event.target.value)} />
+                    <button type="submit" disabled={findingPlaces || !placeQuery.trim()}>{findingPlaces ? 'Finding…' : 'Find'}</button>
+                  </form>
+                  {placeMessage && <p className="any-place-feedback" role="status">{placeMessage}</p>}
+                  {placeResults.length > 0 && <div className="any-place-results">
+                    {placeResults.map((place, index) => <div key={`${place.lat}-${place.lon}-${index}`} className="any-place-result">
+                      <div className="any-place-result-text"><strong>{place.name}</strong><span>{place.detail || `${place.lat.toFixed(5)}, ${place.lon.toFixed(5)}`}</span></div>
+                      <div className="any-place-result-actions">
+                        <button type="button" disabled={trip.ids.length >= MAX_STOPS} title="Add to the end of the walk" onClick={() => addFoundLocation(place)}><Plus size={14}/> Add</button>
+                        <button type="button" disabled={trip.ids.length >= MAX_STOPS} title="Make the first stop" onClick={() => addFoundLocation(place, true)}><MapPin size={14}/> Start</button>
+                      </div>
+                    </div>)}
+                  </div>}
+                  <span className="any-place-attribution">Place search: © OpenStreetMap contributors</span>
+                </div>
                 <div className="category-row" aria-label="Filter by category">
                   {CATEGORIES.map(item => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}
                 </div>
                 <div className="places-list">
                   {visiblePlaces.map(place => <PlaceCard key={place.id} place={place} selected={selectedSet.has(place.id)} onToggle={addOrRemove} disableAdd={trip.ids.length >= MAX_STOPS}/>)}
-                  {!visiblePlaces.length && <div className="empty-search">Nothing found — try a different neighbourhood or category.</div>}
+                  {!visiblePlaces.length && <div className="empty-search">Not in our collection? <button type="button" onClick={() => { setPlaceQuery(search); finderRef.current?.scrollIntoView({ behavior:'smooth',block:'center' }); }}>Search all London places for “{search}”</button></div>}
                 </div>
               </div>
             ) : (
@@ -402,15 +552,15 @@ function App() {
                     <button className={trip.mode === 'manual' ? 'selected' : ''} onClick={() => changeMode('manual')}>Follow my order</button>
                     <button className={trip.mode === 'optimise' ? 'selected' : ''} onClick={() => changeMode('optimise')}>Optimise stops</button>
                   </div>
-                  <p className="route-mode-help">{trip.mode === 'manual' ? 'Your stops stay in the sequence shown below. Use the arrows to adjust it.' : 'We find a shorter order; your selected start stays first.'}</p>
+                  <p className="route-mode-help">{trip.mode === 'manual' ? 'Drag stops by their handle, or use the arrows to adjust your route.' : 'We find a shorter order; drag any stop to switch to your chosen order.'}</p>
                   <div className="field-row"><span className="field-label"><Footprints size={16}/> Walking pace</span><span className="small-field-note">{trip.pace === 3.5 ? 'Relaxed' : trip.pace === 4.5 ? 'Comfortable' : 'Brisk'}</span></div>
                   <div className="segmented">{[3.5,4.5,5.5].map(pace => <button key={pace} className={trip.pace === pace ? 'selected' : ''} onClick={() => changeTrip(prev => ({...prev,pace}))}>{pace === 3.5 ? 'Easy' : pace === 4.5 ? 'Normal' : 'Brisk'}</button>)}</div>
                   <label className="loop-setting"><span><RotateCcw size={16}/> Return to starting point<small>Make this a circular walking tour</small></span><input type="checkbox" checked={trip.loop} onChange={e => changeTrip(prev => ({...prev,loop:e.target.checked}))}/><span className="switch" aria-hidden="true"></span></label>
                 </div>
                 <div className="itinerary-heading"><SectionTitle index="02" hint={trip.mode === 'manual' ? 'YOUR EXACT ORDER' : result ? 'REORDERED FOR YOU' : 'DRAFT ORDER'}>Your itinerary</SectionTitle><button className="text-button" onClick={() => changeTrip(prev=>({...prev,ids:[],custom:[],visits:{},start:''}))} disabled={!trip.ids.length}><Trash2 size={14}/> Clear</button></div>
                 {!selected.length ? <div className="empty-itinerary"><Compass size={28}/><h3>A city full of possibilities.</h3><p>Click anywhere on the map to add your own point, or browse our handpicked places.</p><button onClick={() => setTab('explore')}>Browse places <ArrowRight size={15}/></button></div> : (
-                  <div className="itinerary-list">
-                    {orderedIds.map((id, index) => <TourStop key={id} place={getPlace(id, trip)} index={index} first={index === 0} leg={chosenLegForIndex(index)} onRemove={addOrRemove} onMove={reorder} visit={trip.visits[id]} onVisit={changeVisit} onRename={renameCustomPoint} total={orderedIds.length}/>)}
+                  <div className="itinerary-list" ref={listRef}>
+                    {orderedIds.map((id, index) => <TourStop key={id} place={getPlace(id, trip)} index={index} first={index === 0} leg={chosenLegForIndex(index)} onRemove={addOrRemove} onMove={reorder} visit={trip.visits[id]} onVisit={changeVisit} onRename={renameCustomPoint} total={orderedIds.length} drag={drag} onGrab={beginDrag} onDrag={moveDrag} onDrop={finishDrag} onCancelDrag={cancelDrag}/>)}
                     {trip.loop && orderedIds.length > 1 && <div className="return-leg"><RotateCcw size={15}/> Walk {Math.max(1, Math.round(legs[legs.length-1]?.minutes || 0))} min back to {getPlace(orderedIds[0],trip)?.name}</div>}
                   </div>
                 )}
