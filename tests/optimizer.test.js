@@ -9,7 +9,7 @@ import { decodePolyline6, fetchWalkingMatrix, fetchWalkingLegs } from '../src/li
 test('all curated places have unique IDs and sensible London coordinates', () => {
   assert.equal(new Set(PLACES.map(p => p.id)).size, PLACES.length);
   for (const p of PLACES) {
-    assert.ok(p.lat >= 51.40 && p.lat <= 51.56, p.name);
+    assert.ok(p.lat >= 51.40 && p.lat <= 51.58, p.name);
     assert.ok(p.lon >= -0.25 && p.lon <= 0.02, p.name);
     assert.ok(p.visit > 0);
   }
@@ -128,7 +128,7 @@ test('new London character categories filter local, walkable stops', () => {
 });
 
 test('all place and preset photos have explicit Wikimedia source and CC attribution', () => {
-  assert.equal(PLACES.length, 53);
+  assert.equal(PLACES.length, 54);
   for (const p of PLACES) {
     const key = PHOTO_FOR_PLACE[p.id];
     assert.ok(PHOTOS[key], `${p.name} lacks a photo`);
