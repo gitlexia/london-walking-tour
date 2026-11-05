@@ -16,6 +16,7 @@ export const PHOTOS = {
   'brick': {"filename": "Brick Lane, London 02.jpg", "author": "Derbrauni", "license": "CC BY 4.0", "licenseUrl": "https://creativecommons.org/licenses/by/4.0/", "title": "Brick Lane"},
   'spitalfields': {"filename": "Spitalfields Mkt 2020.jpg", "author": "GrindtXX", "license": "CC BY-SA 4.0", "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/", "title": "Old Spitalfields Market"},
   'camden': {"filename": "Camden Lock London.jpg", "author": "Oxyman", "license": "CC BY 2.5", "licenseUrl": "https://creativecommons.org/licenses/by/2.5/", "title": "Camden Lock"},
+  'hampstead': {"filename": "Hampstead Heath.jpg", "author": "London Less Travelled", "license": "CC BY 2.0", "licenseUrl": "https://creativecommons.org/licenses/by/2.0/", "title": "Hampstead Heath"},
   'primrose': {"filename": "Primrose Hill London.jpg", "author": "morebyless", "license": "CC BY 2.0", "licenseUrl": "https://creativecommons.org/licenses/by/2.0/", "title": "Primrose Hill"},
   'portobello': {"filename": "Portobello Road, Notting Hill, London.jpg", "author": "rboed", "license": "CC BY 2.0", "licenseUrl": "https://creativecommons.org/licenses/by/2.0/", "title": "Portobello Road"},
   'gardens': {"filename": "Kensington Gardens.jpg", "author": "Roberto Arias", "license": "CC BY 2.0", "licenseUrl": "https://creativecommons.org/licenses/by/2.0/", "title": "Kensington Gardens"},
@@ -90,7 +91,8 @@ export const PHOTO_FOR_PLACE = {
   "camden-lock": "camden",
   "stables-market": "camden",
   "chalk-farm-road": "camden",
-  "primrose-hill": "primrose"
+  "primrose-hill": "primrose",
+  "hampstead-heath": "hampstead"
 };
 
 export function photoUrl(key, width = 480) {
