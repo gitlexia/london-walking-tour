@@ -8,7 +8,7 @@ London on Foot brings the city's landmarks, neighbourhoods and lesser-known corn
 
 From Westminster's historic streets to Brixton's markets, Camden's canals and Notting Hill's colourful terraces, London on Foot is designed for discovering the city at your own pace.
 
-The experience includes **53 curated places** and **seven ready-made walking tours**:
+The experience includes **54 curated places** and **seven ready-made walking tours**:
 
 | Walk | Explore |
 | --- | --- |
@@ -25,7 +25,8 @@ The experience includes **53 curated places** and **seven ready-made walking tou
 - **Build a route directly on the map.** Click any point within Greater London to set a starting location or create a custom waypoint.
 - **Mix landmarks with personal stops.** Combine curated attractions with cafés, meeting points or places you discover along the way.
 - **Choose how to travel.** Follow the exact order of your itinerary or let the route optimiser suggest a more efficient sequence.
-- **Fine-tune every stop.** Drag custom pins, rename locations, rearrange your itinerary and adjust time spent at each place.
+- **Fine-tune every stop.** Drag itinerary cards into place, use animated up/down controls, reposition map pins and adjust how long you spend at each stop.
+- **Find any London location.** Search for streets and landmarks outside the curated collection, or paste supported Google Maps sharing links.
 - **Plan around your pace.** Choose a walking speed, estimate travel and visit time, and create one-way or circular walks.
 - **Keep and share your discoveries.** Save walks in your browser, share an itinerary link, export a JSON copy or open directions in Google Maps.
 
@@ -87,3 +88,4 @@ src/
 ## Maps, photography & attribution
 
 Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). London photography is sourced from Wikimedia Commons under the licences attributed to the individual works. See [image credits and licences](IMAGE_CREDITS.md) for photographer credits, source links and reuse terms.
+
