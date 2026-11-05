@@ -18,6 +18,7 @@ Each image below has a source page, photographer, and copyright licence verified
 | Old Spitalfields Market | GrindtXX | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Spitalfields_Mkt_2020.jpg) |
 | Camden Lock | Oxyman | [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Camden_Lock_London.jpg) |
 | Primrose Hill | morebyless | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Primrose_Hill_London.jpg) |
+| Hampstead Heath | London Less Travelled | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Hampstead_Heath.jpg) |
 | Portobello Road | rboed | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Portobello_Road%2C_Notting_Hill%2C_London.jpg) |
 | Kensington Gardens | Roberto Arias | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Kensington_Gardens.jpg) |
 | Brixton Village entrance | Matt Brown | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Brixton_Village_entrance_2024-06-29.jpg) |
