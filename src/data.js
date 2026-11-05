@@ -64,7 +64,8 @@ export const PLACES = [
   { id:'camden-lock', name:'Camden Lock', area:'Camden', category:'History', lat:51.5409, lon:-0.1461, visit:20, detail:'A working canal lock and lively waterside meeting point.' },
   { id:'stables-market', name:'Stables Market', area:'Camden', category:'Markets', lat:51.5421, lon:-0.1488, visit:35, detail:'A maze of market lanes in former stables and industrial buildings.' },
   { id:'chalk-farm-road', name:'Chalk Farm Road', area:'Camden', category:'Neighbourhoods', lat:51.5431, lon:-0.1514, visit:20, detail:'Music venues, shops and the northward continuation of Camden’s street life.' },
-  { id:'primrose-hill', name:'Primrose Hill', area:'Primrose Hill', category:'Parks & gardens', lat:51.5394, lon:-0.1607, visit:35, detail:'A grassy hilltop with one of north London’s best skyline viewpoints.' }
+  { id:'primrose-hill', name:'Primrose Hill', area:'Primrose Hill', category:'Parks & gardens', lat:51.5394, lon:-0.1607, visit:35, detail:'A grassy hilltop with one of north London’s best skyline viewpoints.' },
+  { id:'hampstead-heath', name:'Hampstead Heath', area:'Hampstead', category:'Parks & gardens', lat:51.560863, lon:-0.163572, visit:60, detail:'Wild wooded paths, open meadows and ponds on one of London’s best-loved heaths.' }
 ];
 
 export const BY_ID = Object.fromEntries(PLACES.map((place) => [place.id, place]));
@@ -85,7 +86,7 @@ export const MAX_STOPS = 9;
 export const CHARACTER_GROUPS = {
   'South London character': ['windrush-square','ritzy-brixton','electric-avenue','brixton-village','market-row','brockwell-park'],
   'West London character': ['notting-hill-gate','westbourne-grove','lancaster-road','portobello-road','museum-of-brands','golborne-road','little-venice','kensington-gardens'],
-  'North London character': ['camden-high-street','camden-market','camden-lock','stables-market','chalk-farm-road','primrose-hill','regents-park']
+  'North London character': ['camden-high-street','camden-market','camden-lock','stables-market','chalk-farm-road','primrose-hill','regents-park','hampstead-heath']
 };
 export function matchesCategory(place, category) {
   return category === 'All' || place.category === category || CHARACTER_GROUPS[category]?.includes(place.id) || false;
