@@ -1,6 +1,7 @@
 import { estimateMatrix, makeLegs } from './optimizer.js';
 
-const ROUTING_URL = '/routing';
+const IS_VERCEL_BUILD = import.meta.env?.PROD === true;
+const ROUTING_URL = IS_VERCEL_BUILD ? '/api/routing' : '/routing';
 const BASE_SPEED_KMH = 4.8; // Approximate default used for display-time adjustment.
 
 async function postValhalla(endpoint, payload, signal) {
@@ -10,7 +11,8 @@ async function postValhalla(endpoint, payload, signal) {
   else signal?.addEventListener('abort', onAbort, { once: true });
   const timeout = setTimeout(() => controller.abort(), 14000);
   try {
-    const response = await fetch(`${ROUTING_URL}/${endpoint}`, {
+    const url = IS_VERCEL_BUILD ? `${ROUTING_URL}?endpoint=${encodeURIComponent(endpoint)}` : `${ROUTING_URL}/${endpoint}`;
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
